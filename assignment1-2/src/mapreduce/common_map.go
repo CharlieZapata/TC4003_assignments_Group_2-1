@@ -1,9 +1,9 @@
 package mapreduce
 
 import (
-	"bufio"
 	"encoding/json"
 	"hash/fnv"
+	"io/ioutil"
 	"log"
 	"os"
 )
@@ -53,13 +53,15 @@ func doMap(
 
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	var y string //Append each line to y
-	for scanner.Scan() {
-		y = y + scanner.Text() + " "
-	}
+	//	scanner := bufio.NewScanner(file)
+	y, _ := ioutil.ReadAll(file)
 
-	arrayMap := mapF(inFile, y)
+	//	var y string //Append each line to y
+	//for scanner.Scan() {
+	//	y = y + scanner.Text()
+	//}
+
+	arrayMap := mapF(inFile, string(y))
 	//	fmt.Print(arrayMap)
 
 	reducers := make(map[int][]KeyValue)
