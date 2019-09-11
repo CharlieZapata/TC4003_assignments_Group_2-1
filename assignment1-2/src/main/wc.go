@@ -13,14 +13,16 @@ import (
 // key/value pairs, each represented by a mapreduce.KeyValue.
 func mapF(document string, value string) (res []mapreduce.KeyValue) {
 	value = strings.Replace(value,"."," ",-1)   //Corner case, word1.Word2 was considered as 1 big word
-	m := make(map[string]int)
+	m := make(map[byte]int)
 	
-	re := regexp.MustCompile("[^0-9a-zA-Z]+")
+	//re := regexp.MustCompile("[^0-9a-zA-Z]+")
 
-    for _, word := range strings.Fields(y){
+    for _, word := range value{
+
+		fmt.Print(word)
         word = strings.ToLower(word)
-		word = re.ReplaceAllLiteralString(word,"")
-		if(len(word)>1){					
+	//	word = re.ReplaceAllLiteralString(word,"")
+		if(len(word)>0){					
 			m[word] = m[word]+1
 		}     
 	}
