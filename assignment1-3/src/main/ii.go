@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mapreduce"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -18,15 +19,15 @@ func mapF(document string, value string) (res []mapreduce.KeyValue) {
 		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
 	}
 	value = strings.Replace(value, ".", " ", -1) //Corner case, word1.Word2 was considered as 1 big word
-	m := make(map[string]int)
+	m := make(map[string]string)
 	for _, word := range strings.FieldsFunc(value, f) {
 		if len(word) > 0 {
-			m[word] = m[word] + 1
+			m[word] = document
 		}
 	}
 	var words []mapreduce.KeyValue
 	for k, v := range m { //Transform map to WordCount Array
-		words = append(words, mapreduce.KeyValue{k, strconv.Itoa(v)})
+		words = append(words, mapreduce.KeyValue{k, v})
 	}
 	return words
 }
@@ -35,12 +36,13 @@ func mapF(document string, value string) (res []mapreduce.KeyValue) {
 // list of that key's string value (merged across all inputs). The return value
 // should be a single output value for that key.
 func reduceF(key string, values []string) string {
-	sum := 0
+	sort.Strings(values)
+	output := strconv.Itoa(len(values)) + " "
 	for _, v := range values {
-		tempSum, _ := strconv.Atoi(v)
-		sum += tempSum
+		output = output + v + ","
+
 	}
-	return strconv.Itoa(sum)
+	return output[:len(output)-1]
 
 }
 
