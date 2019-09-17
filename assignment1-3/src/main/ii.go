@@ -20,9 +20,9 @@ func mapF(document string, value string) (res []mapreduce.KeyValue) {
 	}
 	value = strings.Replace(value, ".", " ", -1) //Corner case, word1.Word2 was considered as 1 big word
 	m := make(map[string]string)
-	for _, word := range strings.FieldsFunc(value, f) {
+	for _, word := range strings.FieldsFunc(value, f) { //Iterates over all the words
 		if len(word) > 0 {
-			m[word] = document
+			m[word] = document //The word count was modified to save the files name instead of the occurrences
 		}
 	}
 	var words []mapreduce.KeyValue
@@ -36,13 +36,13 @@ func mapF(document string, value string) (res []mapreduce.KeyValue) {
 // list of that key's string value (merged across all inputs). The return value
 // should be a single output value for that key.
 func reduceF(key string, values []string) string {
-	sort.Strings(values)
-	output := strconv.Itoa(len(values)) + " "
+	sort.Strings(values)                      //The files names list are sorted
+	output := strconv.Itoa(len(values)) + " " //They are presented in the required output format
 	for _, v := range values {
 		output = output + v + ","
 
 	}
-	return output[:len(output)-1]
+	return output[:len(output)-1] //Remove the last ,
 
 }
 

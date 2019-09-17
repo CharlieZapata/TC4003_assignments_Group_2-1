@@ -1,13 +1,12 @@
 package cos418_hw1_1
 
 import (
-	"strings"
-	"fmt"
-	"sort"
 	"bufio"
+	"fmt"
 	"os"
-	"log"
 	"regexp"
+	"sort"
+	"strings"
 )
 
 // Find the top K most common words in a text document.
@@ -24,39 +23,32 @@ func topWords(path string, numWords int, charThreshold int) []WordCount {
 	// HINT: You may find the `strings.Fields` and `strings.ToLower` functions helpful
 	// HINT: To keep only alphanumeric characters, use the regex "[^0-9a-zA-Z]+"
 	//return nil
-	file, err := os.Open(path)   	//Open the file for reading
-    if err != nil {					//Check if error happened when opening a file
-        log.Fatal(err)
-    }
-    defer file.Close()
-
+	file, err := os.Open(path) //Open the file for reading
+	checkError(err)
+	defer file.Close()
 	scanner := bufio.NewScanner(file)
+	var y string //Append each line to y
+	for scanner.Scan() {
+		y = y + scanner.Text()
+	}
 
-	var y string  					//Append each line to y
-	for scanner.Scan() {             
-        y=y+scanner.Text()  		
-    }
-
-	y = strings.Replace(y,"."," ",-1)   //Corner case, word1.Word2 was considered as 1 big word
+	y = strings.Replace(y, ".", " ", -1) //Corner case, word1.Word2 was considered as 1 big word
 	m := make(map[string]int)
-	
 	re := regexp.MustCompile("[^0-9a-zA-Z]+")
 
-    for _, word := range strings.Fields(y){
-        word = strings.ToLower(word)
-		word = re.ReplaceAllLiteralString(word,"")
-		if(len(word)>=charThreshold){					//Checking if word is longer or equal than th
-			m[word] = m[word]+1
-		}     
+	for _, word := range strings.Fields(y) {
+		word = strings.ToLower(word)
+		word = re.ReplaceAllLiteralString(word, "")
+		if len(word) >= charThreshold { //Checking if word is longer or equal than th
+			m[word] = m[word] + 1
+		}
 	}
-	var words [] WordCount
-	for k,v := range m {								//Transform map to WordCount Array
-		words =append(words, WordCount{k,v})
+	var words []WordCount
+	for k, v := range m { //Transform map to WordCount Array
+		words = append(words, WordCount{k, v})
 	}
-
 	sortWordCounts(words)
-
-	return words[0:numWords]							//Return slice of k words
+	return words[0:numWords] //Return slice of k words
 }
 
 // A struct that represents how many times a word is observed in a document

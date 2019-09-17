@@ -1,9 +1,8 @@
 package mapreduce
 
 import (
-	"os"
 	"encoding/json"
-	"log"
+	"os"
 )
 
 // doReduce does the job of a reduce worker: it reads the intermediate
@@ -39,41 +38,29 @@ func doReduce(
 	// file.Close()
 	//
 	// Use checkError to handle errors.
-	
+
 	intermediate := make(map[string][]string) //map to save intermediate key value pairs.
-	
-	for i:=0; i < nMap; i++{
+
+	for i := 0; i < nMap; i++ {
 		name := reduceName(jobName, i, reduceTaskNumber)
-		file, err := os.Open(name)   	//Open the file for reading
-    	if err != nil {					//Check if error happened when opening a file
-        	log.Fatal(err)
-		}
-		
-		unmarshall := json.NewDecoder(file)
-		for unmarshall.More(){
+		file, err := os.Open(name) //Open the file for reading
+		checkError(err)
+		unmarshall := json.NewDecoder(file) //Unmarshall the encoded json
+		for unmarshall.More() {
 			var pair KeyValue
 			err := unmarshall.Decode(&pair)
-			if err != nil{
-				log.Fatal(err)
-			}
-
-			intermediate[pair.Key] = append(intermediate[pair.Key], pair.Value)
+			checkError(err)
+			intermediate[pair.Key] = append(intermediate[pair.Key], pair.Value) //Filling the intermediate map with the decoded values
 		}
-
 		file.Close()
 	}
 
-
 	merge, err := os.Create(mergeName(jobName, reduceTaskNumber))
-	if err != nil{
-		log.Fatal(err)
-	}
+	checkError(err)
 	enc := json.NewEncoder(merge)
-	for k, v := range intermediate{
-		err := enc.Encode(KeyValue{k, reduceF(k,v)})
-		if err != nil{
-			log.Fatal(err)
-		}
+	for k, v := range intermediate {
+		err := enc.Encode(KeyValue{k, reduceF(k, v)})
+		checkError(err)
 	}
 	merge.Close()
 }

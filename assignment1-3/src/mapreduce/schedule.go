@@ -22,9 +22,8 @@ func (mr *Master) schedule(phase jobPhase) {
 	// Remember that workers may fail, and that any given worker may finish
 	// multiple tasks.
 	//
-	var wg sync.WaitGroup
-	for i := 0; i < ntasks; i++ {
-
+	var wg sync.WaitGroup         //this variable is used to controll the go routine flow
+	for i := 0; i < ntasks; i++ { //Iterate over the total number of tasks that will beocme workers at the first run
 		doTaskArgs := new(DoTaskArgs)
 		doTaskArgs.JobName = mr.jobName
 		doTaskArgs.Phase = phase
@@ -32,22 +31,21 @@ func (mr *Master) schedule(phase jobPhase) {
 		doTaskArgs.NumOtherPhase = nios
 		if phase == mapPhase {
 			doTaskArgs.File = mr.files[i]
-		}
+		} //Initialize the workers
 
-		wg.Add(1)
-		go func() {
-			for {
+		wg.Add(1)   //Add each go routine to the control variable
+		go func() { //Definition of the go routine that will be executed for each worker
+			for { //This while loop receives until a registered worker is available in the channel
 				currentWorker := <-mr.registerChannel
-				rpcStatus := call(currentWorker, "Worker.DoTask", &doTaskArgs, new(struct{}))
+				rpcStatus := call(currentWorker, "Worker.DoTask", &doTaskArgs, new(struct{})) //The RPC call is performed, it returns a boolean based on its result
 				if rpcStatus {
-					wg.Done()
-					mr.registerChannel <- currentWorker
+					wg.Done()                           //Notify the routine its compketed
+					mr.registerChannel <- currentWorker //Return the worker to the channel
 					break
 				}
 			}
 		}()
 	}
-	wg.Wait()
-
+	wg.Wait() //Waits for all the routines to finish
 	debug("Schedule: %v phase done\n", phase)
 }

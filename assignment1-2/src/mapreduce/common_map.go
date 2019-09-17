@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"hash/fnv"
 	"io/ioutil"
-	"log"
 	"os"
 )
 
@@ -45,44 +44,28 @@ func doMap(
 	//
 	// Remember to close the file after you have written all the values!
 	// Use checkError to handle errors.
-	//fmt.Print(inFile)
+
 	file, err := os.Open(inFile) //Open the file for reading
-	if err != nil {              //Check if error happened when opening a file
-		log.Fatal(err)
-	}
-
+	checkError(err)
 	defer file.Close()
+	y, _ := ioutil.ReadAll(file) //Read all the file
 
-	//	scanner := bufio.NewScanner(file)
-	y, _ := ioutil.ReadAll(file)
-
-	//	var y string //Append each line to y
-	//for scanner.Scan() {
-	//	y = y + scanner.Text()
-	//}
-
-	arrayMap := mapF(inFile, string(y))
-	//	fmt.Print(arrayMap)
-
-	reducers := make(map[int][]KeyValue)
+	arrayMap := mapF(inFile, string(y))  //Create a key value slice
+	reducers := make(map[int][]KeyValue) //Create a map for reducer to link the output to a file
 
 	for _, v := range arrayMap {
-		reducers[int(ihash(v.Key))%nReduce] = append(reducers[int(ihash(v.Key))%nReduce], v)
+		i := int(ihash(v.Key)) % nReduce
+		reducers[i] = append(reducers[i], v) //Iterate over the complete slices to fill the reducer map
 	}
 
 	for i := 0; i < nReduce; i++ {
-		file, err = os.Create(reduceName(jobName, mapTaskNumber, i))
-		if err != nil {
-			log.Fatal(err)
-		}
+		file, err = os.Create(reduceName(jobName, mapTaskNumber, i)) //Encode files to a Json output
+		checkError(err)
 		enc := json.NewEncoder(file)
 		for _, kv := range reducers[i] {
 			err := enc.Encode(&kv)
-			if err != nil {
-				log.Fatal(err)
-			}
+			checkError(err)
 		}
-
 		file.Close()
 	}
 }
