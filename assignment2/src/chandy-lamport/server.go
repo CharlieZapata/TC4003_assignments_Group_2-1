@@ -1,6 +1,8 @@
 package chandy_lamport
 
-import "log"
+import (
+	"log"
+)
 
 // The main participant of the distributed snapshot protocol.
 // Servers exchange token messages and marker messages among each other.
@@ -8,12 +10,13 @@ import "log"
 // Marker messages represent the progress of the snapshot process. The bulk of
 // the distributed protocol is implemented in `HandlePacket` and `StartSnapshot`.
 type Server struct {
-	Id            string
-	Tokens        int
-	sim           *Simulator
-	outboundLinks map[string]*Link // key = link.dest
-	inboundLinks  map[string]*Link // key = link.src
-	// TODO: ADD MORE FIELDS HERE
+	Id             string
+	Tokens         int
+	sim            *Simulator
+	outboundLinks  map[string]*Link // key = link.dest
+	inboundLinks   map[string]*Link // key = link.src
+	localSnapshot  *SyncMap
+	markerReceived map[int]map[string]bool //Map snapshot id and server id to a markerReceived map
 }
 
 // A unidirectional communication channel between two servers
@@ -31,6 +34,8 @@ func NewServer(id string, tokens int, sim *Simulator) *Server {
 		sim,
 		make(map[string]*Link),
 		make(map[string]*Link),
+		NewSyncMap(),
+		make(map[int]map[string]bool),
 	}
 }
 
@@ -84,11 +89,48 @@ func (server *Server) SendTokens(numTokens int, dest string) {
 // When the snapshot algorithm completes on this server, this function
 // should notify the simulator by calling `sim.NotifySnapshotComplete`.
 func (server *Server) HandlePacket(src string, message interface{}) {
-	// TODO: IMPLEMENT ME
+	switch msg := message.(type) {
+	case TokenMessage:
+		server.Tokens += msg.numTokens //Add the received tokens to the counter
+		ids := make([]int, 0)
+
+		server.localSnapshot.Range(func(key, value interface{}) bool { //Iterate over all the local snapshots
+			snapshotId := key.(int)
+			if !server.markerReceived[snapshotId][src] { //If haven't received marker from src for that snapshot id
+				ids = append(ids, snapshotId) //Then add the snapshot id to the id's slice
+			}
+			return true
+		})
+
+		message := &SnapshotMessage{src, server.Id, msg} //Create the new message struct
+
+		for _, id := range ids { //For all the snapshot's id stored in the slice
+			tempSnap, _ := server.localSnapshot.Load(id)
+			snap := tempSnap.(SnapshotState)
+			snap.messages = append(snap.messages, message) //Add the new message to the snapshot
+			server.localSnapshot.Store(id, snap)
+		}
+	case MarkerMessage:
+		_, ok := server.localSnapshot.Load(msg.snapshotId) //Read the local snapshot if exists
+		if !ok {
+			server.StartSnapshot(msg.snapshotId) //If not exists then start it
+		}
+
+		server.markerReceived[msg.snapshotId][src] = true //Marker received from source, so set flag to true
+
+		if len(server.markerReceived[msg.snapshotId]) == len(server.inboundLinks) { //When received marker from all the inbound links
+			server.sim.NotifySnapshotComplete(server.Id, msg.snapshotId) //Notify to the simulator
+		}
+	}
 }
 
 // Start the chandy-lamport snapshot algorithm on this server.
 // This should be called only once per server.
 func (server *Server) StartSnapshot(snapshotId int) {
-	// TODO: IMPLEMENT ME
+	snapshot := SnapshotState{snapshotId, make(map[string]int), make([]*SnapshotMessage, 0)} //Create new local snapshot
+	snapshot.tokens[server.Id] = server.Tokens                                               //Save the current number of tokens
+	server.localSnapshot.Store(snapshotId, snapshot)
+	server.markerReceived[snapshotId] = make(map[string]bool) //Add the snapshot id to the markerReceived map
+
+	server.SendToNeighbors(MarkerMessage{snapshotId}) //Send the marker to all the neighbors
 }

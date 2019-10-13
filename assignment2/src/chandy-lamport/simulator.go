@@ -19,11 +19,11 @@ const maxDelay = 5
 // to pass tokens to each other, and collecting the snapshot state after the process
 // has terminated.
 type Simulator struct {
-	time           int
-	nextSnapshotId int
-	servers        map[string]*Server // key = server ID
-	logger         *Logger
-	// TODO: ADD MORE FIELDS HERE
+	time                 int
+	nextSnapshotId       int
+	servers              map[string]*Server // key = server ID
+	logger               *Logger
+	localSnapshotsStates map[int]chan string //Map to store server's name once it finishes its snapshot
 }
 
 func NewSimulator() *Simulator {
@@ -32,6 +32,7 @@ func NewSimulator() *Simulator {
 		0,
 		make(map[string]*Server),
 		NewLogger(),
+		make(map[int]chan string),
 	}
 }
 
@@ -105,22 +106,35 @@ func (sim *Simulator) Tick() {
 // Start a new snapshot process at the specified server
 func (sim *Simulator) StartSnapshot(serverId string) {
 	snapshotId := sim.nextSnapshotId
-	sim.nextSnapshotId++
+	sim.nextSnapshotId++ //Get Unique value for snapshot ID
 	sim.logger.RecordEvent(sim.servers[serverId], StartSnapshot{serverId, snapshotId})
-	// TODO: IMPLEMENT ME
+
+	sim.localSnapshotsStates[snapshotId] = make(chan string, len(sim.servers)) //Create the channel for the current snapshot
+	sim.servers[serverId].StartSnapshot(snapshotId)                            //Call the actual server's startSnapshot function
 }
 
 // Callback for servers to notify the simulator that the snapshot process has
 // completed on a particular server
 func (sim *Simulator) NotifySnapshotComplete(serverId string, snapshotId int) {
 	sim.logger.RecordEvent(sim.servers[serverId], EndSnapshot{serverId, snapshotId})
-	// TODO: IMPLEMENT ME
+	sim.localSnapshotsStates[snapshotId] <- serverId //Store the server's name in the channel for the specified snapshot id
 }
 
 // Collect and merge snapshot state from all the servers.
 // This function blocks until the snapshot process has completed on all servers.
 func (sim *Simulator) CollectSnapshot(snapshotId int) *SnapshotState {
-	// TODO: IMPLEMENT ME
 	snap := SnapshotState{snapshotId, make(map[string]int), make([]*SnapshotMessage, 0)}
+	for i := 0; i < len(sim.servers); i++ { //Iterate over all the servers
+		serverId := <-sim.localSnapshotsStates[snapshotId]              //Read the server id from channel
+		temp, _ := sim.servers[serverId].localSnapshot.Load(snapshotId) //Get the server's local snapshot
+		snapshot := temp.(SnapshotState)
+
+		for k, v := range snapshot.tokens {
+			snap.tokens[k] = v //Copy the tokens map to the global snapshot struct
+		}
+
+		snap.messages = append(snap.messages, snapshot.messages...) //Copy all the messages from the local to the global snapshot
+	}
+
 	return &snap
 }
