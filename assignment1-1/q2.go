@@ -3,6 +3,7 @@ package cos418_hw1_1
 import (
 	"bufio"
 	"io"
+	"os"
 	"strconv"
 )
 
@@ -12,6 +13,11 @@ import (
 func sumWorker(nums chan int, out chan int) {
 	// TODO: implement me
 	// HINT: use for loop over `nums`
+	sum := 0 //Local var for sum of each gorutine
+	for i := 0; i < cap(nums); i++ {
+		sum += <-nums
+	}
+	out <- sum //Write the sum at the end of each gorutine
 }
 
 // Read integers from the file `fileName` and return sum of all values.
@@ -23,7 +29,28 @@ func sum(num int, fileName string) int {
 	// TODO: implement me
 	// HINT: use `readInts` and `sumWorkers`
 	// HINT: used buffered channels for splitting numbers between workers
-	return 0
+	// return 0
+	file, err := os.Open(fileName) //Open the file for reading
+	checkError(err)
+	defer file.Close()
+
+	numSlice, err := readInts(file)
+	checkError(err)
+
+	out := make(chan int, num) //Channel to save all the partial sums from gorutines
+	n := len(numSlice) / num   //Size of each slice for each gorutine
+	for i := 0; i < num; i++ {
+		in := make(chan int, n) //One channel per gorutine for saving the values to sum
+		for j := 0; j < n; j++ {
+			in <- numSlice[(i*n)+j] //Passing to the channel the input values
+		}
+		go sumWorker(in, out) //Calling num gorutines
+	}
+	sum := 0
+	for i := 0; i < num; i++ {
+		sum += <-out //Reading the num partial results from the output channel
+	}
+	return sum
 }
 
 // Read a list of integers separated by whitespace from `r`.

@@ -145,9 +145,7 @@ func (cfg *config) start1(i int) {
 	go func() {
 		for m := range applyCh {
 			err_msg := ""
-			if m.UseSnapshot {
-				// ignore the snapshot
-			} else if v, ok := (m.Command).(int); ok {
+			if v, ok := (m.Command).(int); ok {
 				cfg.mu.Lock()
 				for j := 0; j < len(cfg.logs); j++ {
 					if old, oldok := cfg.logs[j][m.Index]; oldok && old != v {
